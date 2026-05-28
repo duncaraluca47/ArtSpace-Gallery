@@ -4,6 +4,8 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
+const hasLocalCerts = fs.existsSync('certs/key.pem') && fs.existsSync('certs/cert.pem')
+
 export default defineConfig({
   plugins: [
     // The React and Tailwind plugins are both required for Make, even if
@@ -20,13 +22,16 @@ export default defineConfig({
   server: {
     // bind to network so other machines can reach the dev server
     host: true,
-    https: {
-      key: fs.readFileSync('certs/key.pem'),
-      cert: fs.readFileSync('certs/cert.pem'),
-    },
+    https: hasLocalCerts
+      ? {
+          key: fs.readFileSync('certs/key.pem'),
+          cert: fs.readFileSync('certs/cert.pem'),
+        }
+      : undefined,
     // Proxy API and socket traffic to the backend to keep same-origin
     proxy: (() => {
-      const target = process.env.VITE_BACKEND_URL ?? "https://localhost:4443";
+      const defaultBackendUrl = hasLocalCerts ? "https://localhost:4443" : "http://localhost:4443";
+      const target = process.env.VITE_BACKEND_URL ?? defaultBackendUrl;
       return {
         // Proxy REST and GraphQL API calls
         "/api": {
