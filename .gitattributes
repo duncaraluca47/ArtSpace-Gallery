@@ -1,0 +1,6 @@
+* text=auto eol=lf
+
+# Keep Windows scripts usable if the project adds any in the future.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
