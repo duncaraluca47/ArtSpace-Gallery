@@ -11,6 +11,10 @@ import { ArtworkService } from "./services/artworkService";
 import { PrismaArtworkStore } from "../prismaArtworkStore";
 import type { ArtworkCreateInput } from "./types";
 
+function normalizeOrigin(origin: string) {
+  return origin.trim().replace(/\/+$/, "");
+}
+
 function parseCorsOrigins(value: string | undefined) {
   if (!value) {
     return undefined;
@@ -18,7 +22,7 @@ function parseCorsOrigins(value: string | undefined) {
 
   const origins = value
     .split(",")
-    .map((origin) => origin.trim())
+    .map(normalizeOrigin)
     .filter(Boolean);
 
   return origins.length > 0 ? origins : undefined;
@@ -38,7 +42,19 @@ export type AppReturn = {
 export function createApp(deps: AppDependencies = {}): AppReturn {
   const app = express();
 
-  const corsOrigin = parseCorsOrigins(process.env.CORS_ORIGIN) ?? (process.env.NODE_ENV === "production" ? false : true);
+  const corsOrigins = parseCorsOrigins(process.env.CORS_ORIGIN);
+  const corsOrigin = corsOrigins
+    ? (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+
+        callback(null, corsOrigins.includes(normalizeOrigin(origin)));
+      }
+    : process.env.NODE_ENV === "production"
+      ? false
+      : true;
 
   const store = new PrismaArtworkStore(deps.seed ?? seedArtworks);
   const service = new ArtworkService(store);
