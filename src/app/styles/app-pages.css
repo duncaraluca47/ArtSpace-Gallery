@@ -1,0 +1,116 @@
+.landing-page-bg {
+  background-image: url("https://upload.wikimedia.org/wikipedia/commons/a/a5/Tsunami_by_hokusai_19th_century.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.landing-page-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.55) 35%, rgba(255, 255, 255, 0.2) 100%);
+  pointer-events: none;
+}
+
+.landing-page-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+.gallery-page-bg {
+  background-image: url("https://upload.wikimedia.org/wikipedia/commons/7/78/Claude_Monet_-_The_Magpie_-_Google_Art_Project.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.page-reveal {
+  animation: page-reveal 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.fade-up {
+  animation: fade-up 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.fade-up-delay-1 {
+  animation-delay: 100ms;
+}
+
+.fade-up-delay-2 {
+  animation-delay: 180ms;
+}
+
+.fade-up-delay-3 {
+  animation-delay: 260ms;
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.9);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.motion-card {
+  transition: transform 260ms ease, box-shadow 260ms ease;
+}
+
+.motion-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.16);
+}
+
+.motion-button {
+  transition: transform 180ms ease, box-shadow 220ms ease, opacity 180ms ease;
+}
+
+.motion-button:hover {
+  transform: translateY(-2px);
+}
+
+.motion-button:active {
+  transform: translateY(0);
+}
+
+@keyframes page-reveal {
+  from {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1024px) {
+  .gallery-page-bg {
+    background-attachment: scroll;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-reveal,
+  .fade-up,
+  .motion-card,
+  .motion-button {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

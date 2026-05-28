@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Artwork {
+  id          String    @id @default(cuid())
+  title       String
+  artist      String
+  year        Int
+  medium      String
+  description String
+  imageUrl    String
+  price       Float
+  forSale     Boolean   @default(true)
+  likes       Int       @default(0)
+  averageRating Float?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  reviews     Review[]
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  artworkId String
+  author    String
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+
+  artwork Artwork @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+
+  @@index([artworkId])
+}
+
+model Permission {
+  id          String @id @default(cuid())
+  name        String @unique
+  description String?
+  roles       Role[]
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  permissions Permission[]
+  users       User[]
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  username            String    @unique
+  email               String    @unique
+  passwordHash        String
+  resetToken          String?
+  resetTokenExpiresAt DateTime?
+  roleId              String
+  emailVerified       Boolean   @default(false)
+  emailVerifiedAt     DateTime?
+  otpSecret           String?
+  otpEnabled          Boolean   @default(false)
+  pendingOtp          String?
+  pendingOtpExpiresAt DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  role                Role      @relation(fields: [roleId], references: [id])
+
+  @@index([roleId])
+}
