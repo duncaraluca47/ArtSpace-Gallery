@@ -3,10 +3,15 @@ import mongoose from "mongoose";
 const mongoUrl = process.env.MONGODB_URL ?? "";
 
 if (!mongoUrl) {
-  console.warn("MONGODB_URL is not set. MongoDB will not connect.");
+  console.warn("MONGODB_URL is not set. MongoDB connection will be skipped.");
 }
 
 export const connectMongo = async () => {
+  if (!mongoUrl) {
+    // Nothing to do when no Mongo URL is configured (optional feature)
+    return;
+  }
+
   try {
     await mongoose.connect(mongoUrl, {
       // recommended options can be left default for mongoose v6+
