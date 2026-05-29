@@ -67,6 +67,7 @@ export type AuthContextValue = {
   verifyLoginOtp: (stepToken: string, code: string) => Promise<LoginOtpResult>;
   verifyLoginTotp: (stepToken: string, token: string) => Promise<AuthUser>;
   register: (credentials: RegisterCredentials) => Promise<RegisterResult>;
+  resendRegistrationVerification: (username: string) => Promise<void>;
   verifyRegistrationEmail: (username: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
@@ -410,6 +411,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return parseJsonResponse<RegisterResult>(response);
   }, []);
 
+  const resendRegistrationVerification = useCallback(async (username: string) => {
+    const response = await fetch(`${apiBaseUrl}/auth/resend-verification`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ username }),
+    });
+
+    if (!response.ok) {
+      const errorMessage = response.status === 404 ? "Account not found." : "Unable to send verification code.";
+      throw createAuthError(response.status, errorMessage);
+    }
+  }, []);
+
   const verifyRegistrationEmail = useCallback(async (username: string, code: string) => {
     const response = await fetch(`${apiBaseUrl}/auth/verify-email`, {
       method: "POST",
@@ -434,6 +452,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     verifyLoginOtp,
     verifyLoginTotp,
     register,
+    resendRegistrationVerification,
     verifyRegistrationEmail,
     logout,
     isAdmin: user?.role === "admin",
@@ -442,7 +461,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     isReady,
     tokenVersion,
-  }), [isReady, login, logout, register, sendLoginOtp, tokenVersion, user, verifyLoginOtp, verifyLoginTotp, verifyRegistrationEmail]);
+  }), [isReady, login, logout, register, resendRegistrationVerification, sendLoginOtp, tokenVersion, user, verifyLoginOtp, verifyLoginTotp, verifyRegistrationEmail]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

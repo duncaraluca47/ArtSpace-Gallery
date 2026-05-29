@@ -4,6 +4,7 @@ import { useOptionalAuth } from "../context/AuthContext";
 
 const LOGIN_STAGE = {
   credentials: "credentials",
+  emailVerification: "emailVerification",
   emailOtp: "emailOtp",
   totp: "totp",
 } as const;
@@ -18,6 +19,8 @@ export function LoginPage() {
   const sendLoginOtp = auth?.sendLoginOtp;
   const verifyLoginOtp = auth?.verifyLoginOtp;
   const verifyLoginTotp = auth?.verifyLoginTotp;
+  const resendRegistrationVerification = auth?.resendRegistrationVerification;
+  const verifyRegistrationEmail = auth?.verifyRegistrationEmail;
   const user = auth?.user ?? null;
   const isReady = auth?.isReady ?? true;
   const [stage, setStage] = useState<LoginStage>(LOGIN_STAGE.credentials);
@@ -31,6 +34,7 @@ export function LoginPage() {
   const [legacySuccessMessage, setLegacySuccessMessage] = useState<string | null>(null);
   const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
   const locationState = location.state as { message?: string } | null;
 
   useEffect(() => {
@@ -46,6 +50,10 @@ export function LoginPage() {
   }, [verificationCode, totpToken, username, password]);
 
   useEffect(() => {
+    setVerificationSent(false);
+  }, [username]);
+
+  useEffect(() => {
     setLegacyErrors({});
   }, [username, password]);
 
@@ -58,10 +66,68 @@ export function LoginPage() {
     setVerificationCode("");
     setTotpToken("");
     setStepToken(null);
+    setVerificationSent(false);
+  };
+
+  const sendVerificationCode = async () => {
+    if (!resendRegistrationVerification) {
+      throw new Error("Registration verification is not available.");
+    }
+
+    await resendRegistrationVerification(username.trim());
+    setVerificationSent(true);
+    setVerificationNotice("A verification code has been sent to your email.");
+    setStage(LOGIN_STAGE.emailVerification);
+  };
+
+  const startLoginFlow = async () => {
+    if (!login || !sendLoginOtp || !verifyLoginOtp || !verifyLoginTotp) {
+      throw new Error("Authentication backend is not available.");
+    }
+
+    const startResult = await login({ username, password } as any);
+
+    if (startResult && (startResult as any).accessToken) {
+      navigate("/");
+      return;
+    }
+
+    setStepToken((startResult as any).stepToken);
+    await sendLoginOtp((startResult as any).stepToken);
+    setStage(LOGIN_STAGE.emailOtp);
+    setVerificationCode("");
+    setVerificationNotice("A verification code has been sent to your email.");
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (stage === LOGIN_STAGE.emailVerification) {
+      if (!verifyRegistrationEmail) {
+        setErrorMessage("Registration verification is not available.");
+        return;
+      }
+
+      if (verificationCode.trim().length !== 6) {
+        setErrorMessage("Enter the 6-digit verification code.");
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      try {
+        await verifyRegistrationEmail(username.trim(), verificationCode.trim());
+        setVerificationNotice("Email verified. Continuing sign-in...");
+        await startLoginFlow();
+      } catch (error) {
+        const maybeError = error as { message?: string };
+        setErrorMessage(maybeError.message ?? "Unable to verify email.");
+      } finally {
+        setIsSubmitting(false);
+      }
+
+      return;
+    }
 
     if (!login || !sendLoginOtp || !verifyLoginOtp || !verifyLoginTotp) {
       const nextErrors: { email?: string; password?: string } = {};
@@ -84,21 +150,7 @@ export function LoginPage() {
 
     try {
       if (stage === LOGIN_STAGE.credentials) {
-        const startResult = await login({ username, password } as any);
-
-        // If login returned a session (accessToken + user), navigate to home
-        if (startResult && (startResult as any).accessToken) {
-          navigate("/");
-          return;
-        }
-
-        setStepToken((startResult as any).stepToken);
-        const otpResult = await sendLoginOtp((startResult as any).stepToken);
-        setStage(LOGIN_STAGE.emailOtp);
-        setVerificationCode("");
-        // Do not expose development fallback codes in the UI.
-        // Show a generic instruction instead so emails are checked privately.
-        setVerificationNotice("A verification code has been sent to your email.");
+        await startLoginFlow();
         return;
       }
 
@@ -124,7 +176,23 @@ export function LoginPage() {
       navigate("/");
     } catch (error) {
       const maybeError = error as { status?: number; message?: string };
-      setErrorMessage(maybeError.status === 403 ? "Verify your email address before logging in." : maybeError.message ?? "Unable to log in.");
+      if (maybeError.status === 403) {
+        setErrorMessage(null);
+        try {
+          if (!verificationSent) {
+            await sendVerificationCode();
+          }
+        } catch (sendError) {
+          const maybeSendError = sendError as { message?: string };
+          setErrorMessage(maybeSendError.message ?? "Verify your email address before logging in.");
+          return;
+        }
+
+        setErrorMessage(null);
+        return;
+      }
+
+      setErrorMessage(maybeError.message ?? "Unable to log in.");
 
       if (maybeError.status === 401) {
         if (stage !== LOGIN_STAGE.credentials) {
@@ -142,9 +210,13 @@ export function LoginPage() {
   const heading =
     stage === LOGIN_STAGE.credentials ? "Login" : stage === LOGIN_STAGE.emailOtp ? "Email Verification" : "Authenticator Verification";
 
+  const emailVerificationHeading = "Verify Your Email";
+
   const helperText =
     stage === LOGIN_STAGE.credentials
       ? `Use your ${login ? "username" : "email"} and password to start the sign-in flow.`
+      : stage === LOGIN_STAGE.emailVerification
+        ? "We sent a code to your email. Enter it to verify the account, then we will continue sign-in."
       : stage === LOGIN_STAGE.emailOtp
         ? "Enter the 6-digit code sent to your email."
         : "Enter the 6-digit code from your authenticator app.";
@@ -154,7 +226,7 @@ export function LoginPage() {
       <div className="mx-auto max-w-md rounded-3xl border border-white/70 bg-white/90 p-8 shadow-[0_24px_80px_rgba(44,44,44,0.12)] backdrop-blur">
         <div className="mb-8 text-center">
           <p className="mb-2 text-sm uppercase tracking-[0.3em] text-[#A07C1A]">ArtSpace Access</p>
-          <h1 className="text-4xl text-[#2C2C2C]">{heading}</h1>
+          <h1 className="text-4xl text-[#2C2C2C]">{stage === LOGIN_STAGE.emailVerification ? emailVerificationHeading : heading}</h1>
           <p className="mt-3 text-sm leading-6 text-[#666666]">{helperText}</p>
         </div>
 
@@ -217,6 +289,27 @@ export function LoginPage() {
                 {!login && legacyErrors.password && <p className="mt-1 text-sm text-red-600">{legacyErrors.password}</p>}
               </div>
             </>
+          )}
+
+          {stage === LOGIN_STAGE.emailVerification && (
+            <div>
+              <label htmlFor="verificationCode" className="mb-2 block text-sm font-medium text-[#2C2C2C]">
+                Verification code
+              </label>
+              <input
+                id="verificationCode"
+                name="verificationCode"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={verificationCode}
+                onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, ""))}
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-center tracking-[0.35em] text-[#2C2C2C] outline-none transition focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20"
+                placeholder="123456"
+                required
+              />
+            </div>
           )}
 
           {stage === LOGIN_STAGE.emailOtp && (

@@ -55,6 +55,10 @@ const registrationVerificationSchema = z.object({
   code: z.string().trim().length(6),
 });
 
+const resendRegistrationVerificationSchema = z.object({
+  username: z.string().trim().min(1),
+});
+
 const registerSchema = z.object({
   username: z.string().trim().min(3),
   email: z.string().trim().email(),
@@ -392,6 +396,46 @@ export function createAuthRouter() {
     await sendOtpEmail(user, EMAIL_OTP_PURPOSE);
 
     return res.status(200).json({ success: true });
+  });
+
+  router.post("/resend-verification", async (req, res) => {
+    const parsedBody = resendRegistrationVerificationSchema.safeParse(req.body);
+
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: "Invalid request body.",
+        details: parsedBody.error.issues.map((issue) => ({
+          field: issue.path.join(".") || "root",
+          message: issue.message,
+        })),
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { username: parsedBody.data.username },
+      include: {
+        role: {
+          include: {
+            permissions: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (user.emailVerified) {
+      return res.status(200).json({ success: true, alreadyVerified: true });
+    }
+
+    const verificationCode = await issueOtpChallenge(user, EMAIL_OTP_PURPOSE);
+
+    return res.status(200).json({
+      success: true,
+      verificationCode: process.env.NODE_ENV === "production" ? undefined : verificationCode,
+    });
   });
 
   router.post("/verify-email", async (req, res) => {

@@ -11,14 +11,21 @@ For cloud deployment, the server can fall back to HTTP behind the platform's HTT
 
 ## Email setup
 
-The backend sends login and registration verification codes through SMTP.
+The backend sends login and registration verification codes and password reset links through SMTP.
 
-For Mailtrap:
-- Use the SMTP host, port, username, and password shown in your Mailtrap inbox or sandbox settings.
-- Put those values into `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and `SMTP_PASS` in `.env` or `.env.local`.
-- Restart the backend after changing the values.
+Use a real SMTP provider so messages reach actual inboxes. Good free or low-cost options include Gmail SMTP, Outlook/Office365 SMTP, Brevo, SendGrid SMTP, or Mailgun SMTP.
 
-Mailtrap sandbox accounts capture messages inside Mailtrap instead of sending them to real inboxes.
+Set these environment variables in `.env` or `.env.local`:
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
+- `FRONTEND_URL` for password reset links, for example `https://your-site.netlify.app`
+
+Restart the backend after changing the values.
+
+In production, the backend now requires real SMTP configuration; it no longer falls back to a fake transport.
 
 ## Endpoints
 - `GET /api/health`
