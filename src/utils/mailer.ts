@@ -38,6 +38,7 @@ async function getTransporter() {
       host: resolvedHost,
       port: smtpPort,
       secure: smtpPort === 465,
+      family: 4,
       auth: {
         user: smtpUser,
         pass: smtpPass,
@@ -48,6 +49,7 @@ async function getTransporter() {
       socketTimeout: 10_000,
       tls: {
         servername: smtpHost,
+        minVersion: "TLSv1.2",
       },
     });
 
