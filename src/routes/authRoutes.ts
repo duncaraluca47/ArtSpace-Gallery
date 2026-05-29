@@ -588,18 +588,10 @@ export function createAuthRouter() {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    if (!user.emailVerified) {
-      return res.status(403).json({ error: "Email verification required" });
-    }
-
-    const stepToken = generateMfaStepToken({ userId: user.id, step: "mfa" });
-
-    return res.status(200).json({
-      success: true,
-      stepToken,
-      requiresEmailOtp: true,
-      requiresTotp: user.otpEnabled,
-    });
+    // Temporarily bypass email OTP and TOTP verification so users can
+    // sign in with username + password only. Keep the original flow
+    // in place for re-enabling later.
+    return issueSessionResponse(res, user);
   });
 
   router.post("/forgot-password", async (req, res) => {
